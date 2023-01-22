@@ -1,5 +1,10 @@
+/* eslint-disable consistent-return */
+/* eslint-disable array-callback-return */
+/* eslint-disable arrow-body-style */
 /* eslint-disable no-console */
 // TODO: write code here
+
+import { Tooltip } from './tooltip';
 
 console.log('app.js bundled');
 
@@ -15,8 +20,35 @@ const errors = {
   },
 };
 
+const tooltipFactory = new Tooltip();
+
+let actualMessages = [];
+
+const showTooltip = (message, el) => {
+  actualMessages.push({
+    name: el.name,
+    id: tooltipFactory.showTooltip(message, el),
+  });
+};
+
+const getError = (el) => {
+  const errorKey = Object.keys(ValidityState.prototype).find((key) => {
+    if (!el.name) return;
+    if (key === 'valid') return;
+
+    return el.validity[key];
+  });
+
+  if (!errorKey) return;
+
+  return errors[el.name][errorKey];
+};
+
 form.addEventListener('submit', (e) => {
   e.preventDefault();
+
+  actualMessages.forEach((message) => tooltipFactory.removeTooltip(message.id));
+  actualMessages = [];
 
   if (form.checkValidity()) {
     console.log('valid');
@@ -25,30 +57,39 @@ form.addEventListener('submit', (e) => {
   }
 
   const { elements } = form;
-  // const elements = form.elements; тоже, что и 27строка
+  // const elements = form.elements; тоже, что и 59 строка
 
-  // eslint-disable-next-line arrow-body-style
-  const invalid = [...elements].some((el) => {
-    // eslint-disable-next-line array-callback-return
-    return Object.keys(ValidityState.prototype).some((key) => {
-      if (!el.name) return;
-      if (key === 'valid') return;
+  [...elements].some((elem) => {
+    const error = getError(elem);
 
-      if (el.validity[key]) {
-        console.log(key);
-        console.log(errors[el.name][key]);
+    if (error) {
+      showTooltip(error, elem);
 
-        el.setCustomValidity(errors[el.name][key]);
-
-        // eslint-disable-next-line consistent-return
-        return true;
-      }
-    });
+      return true;
+    }
   });
-
-  if (invalid) {
-    form.reportValidity();
-  }
 
   console.log('submit');
 });
+
+const elementOnBlur = (e) => {
+  const el = e.target;
+
+  const error = getError(el);
+
+  if (error) {
+    showTooltip(error, el);
+  } else {
+    const currentErrorMessage = actualMessages.find((item) => item.name === el.name);
+
+    if (currentErrorMessage) {
+      tooltipFactory.removeTooltip(currentErrorMessage.id);
+    }
+  }
+
+  el.removeEventListener('blur', elementOnBlur);
+};
+
+form.elements.forEach((el) => el.addEventListener('focus', () => {
+  el.addEventListener('blur', elementOnBlur);
+}));
